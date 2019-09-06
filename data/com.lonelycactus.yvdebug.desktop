@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=YVDebug
+Exec=yvdebug
+Icon=lonelycactus-yvdebug
+Comment=An interactive debugger for GNU Guile
+Categories=Development;Debugger;GTK
+StartupNotify=true

@@ -1,6 +1,3 @@
-#!/usr/bin/env sh
-exec guile -q -L . -l yvdebug.scm -e '(@ (yvdebug) main)' -s "$0" "$@"
-!#
 (define-module (yvdebug)
   #:use-module (ice-9 command-line)
   #:use-module (ice-9 binary-ports)

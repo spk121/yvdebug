@@ -1,0 +1,2 @@
+#!/usr/bin/env sh
+exec @GUILE@ --debug --no-auto-compile -e '(@ (yvdebug) main)' "$@"

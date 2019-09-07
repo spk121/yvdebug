@@ -86,9 +86,9 @@ CLEANFILES += \
 
 dist_bin_SCRIPTS = src/yvdebug
 
-yvdebug: yvdebug.in
-	sed s^@GUILE@^$(GUILE)^ $< > $@
-	chmod 755 yvdebug
+src/yvdebug: src/yvdebug.in
+	sed s^GUILE^$(GUILE)^ $< > $@
+	chmod 755 $@
 
 EXTRA_DIST += src/yvdebug.in
 CLEANFILES += src/yvdebug

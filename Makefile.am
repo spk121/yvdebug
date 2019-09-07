@@ -50,15 +50,10 @@ CLEANFILES = \
 pkgguilesitedir = $(guilesitedir)/yvdebug
 pkgguileobjectdir = $(guileobjectdir)/yvdebug
 
-dist_guilesite_DATA = \
- module/yvdebug.scm
-
 dist_pkgguilesite_DATA = \
+  module/yvdebug/main.scm \
   module/yvdebug/terminal.scm \
   module/yvdebug/typelib.scm
-
-guileobject_DATA = \
-  $(dist_guilesite_DATA:%.scm=%.go)
 
 pkgguileobject_DATA = \
   $(dist_pkgguilesite_DATA:%.scm=%.go)

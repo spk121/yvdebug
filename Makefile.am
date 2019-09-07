@@ -32,8 +32,13 @@ uninstall-local:
 	xdg-icon-resource forceupdate
 
 # UI files
-yvdebug.gresource: yvdebug.gresource.xml
-	$(GLIB_COMPILE_RESOURCES) --target=$@ $<
+RESOURCE_FILES = data/mainwindow.ui
+
+data/yvdebug.gresource: data/yvdebug.gresource.xml $(RESOURCE_FILES)
+	glib-compile-resources --sourcedir=data --target=$@ $<
+
+# Package data
+dist_pkgdata_DATA = data/yvdebug.gresource
 
 EXTRA_DIST += \
   data/lonelycactus-yvdebug.png \

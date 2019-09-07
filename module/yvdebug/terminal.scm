@@ -60,7 +60,6 @@ it."
                                   OCRNL ONOCR))
     (false-if-exception (termios-ispeed-set! termios 115200))
     (false-if-exception (termios-ospeed-set! termios 115200))
-    (write (termios-ospeed-get termios))
     (tcsetattr! port TCSANOW termios)))
 
 (define (set-termios-to-defaults port)

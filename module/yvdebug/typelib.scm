@@ -6,28 +6,24 @@
 
 (push-duplicate-handler! 'merge-generics)
 
-(define (typelib-export-escape lib version badnames)
-  (require lib version)
-  (let ((%bindings (apply append
-                          (map load
-                               (infos lib))))
-        (%badnames (append %rnrs-syntax badnames)))
-    (write %badnames)
-    (for-each (lambda (binding)
-                (if (member binding %badnames)
-                    (let ((new-binding
-                           (symbol-append
-                            (string->symbol (string-downcase lib))
-                            ':
-                            binding)))
-                      (format #t "~s - ~s -> ~s \n" lib binding new-binding)
-                      (export new-binding binding))
-                    ;; else
-                    (begin
-                      (format #t "~s ~s ~s\n" lib binding (symbol? binding))
-                      (export binding))))
-              %bindings)))
+(define (escape sym prefix badnames)
+  (if (member sym badnames)
+      (symbol-append prefix sym)
+      ;; else
+      sym))
 
-(typelib->module (current-module) "Gio" "2.0")
-(typelib->module (current-module) "Gtk" "3.0")
-(typelib->module (current-module) "Vte" "2.91")
+(define (typelib->export lib version prefix badnames)
+  (require lib version)
+  (let* ((names (apply append (map load (infos lib))))
+         (name-translations (map
+                             (lambda (name)
+                               (cons name (escape name prefix badnames)))
+                             names)))
+    (module-export! (current-module) name-translations)))
+
+(define %badnames (append %rnrs-syntax '(connect)))
+
+(typelib->export "GLib" "2.0" 'g/ %badnames)
+(typelib->export "Gio" "2.0" 'gio/ %badnames)
+(typelib->export "Gtk" "3.0" 'gtk/ %badnames)
+(typelib->export "Vte" "2.91" 'vte/ %badnames)

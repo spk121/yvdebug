@@ -4,24 +4,31 @@
   #:use-module (srfi srfi-1)
   #:use-module (gi repository))
 
+(define %badnames (append %rnrs-syntax
+                          '(connect format write append close)))
+
 (push-duplicate-handler! 'merge-generics)
 
 (define (escape sym prefix badnames)
+  "Add a prefix to this symbol if it is in the badnames list"
   (if (member sym badnames)
       (symbol-append prefix sym)
       ;; else
       sym))
 
 (define (typelib->export lib version prefix badnames)
+  "Load and export everything in LIB VERSION, adding a PREFIX to
+exported name of procedures whose names appear in BADNAMES"
+  (define (escape-name name)
+    (escape name prefix badnames))
   (require lib version)
-  (let* ((names (apply append (map load (infos lib))))
+  (let* ((names (append-map load (infos lib)))
          (name-translations (map
                              (lambda (name)
-                               (cons name (escape name prefix badnames)))
+                               `(,name . ,(escape-name name)))
                              names)))
     (module-export! (current-module) name-translations)))
 
-(define %badnames (append %rnrs-syntax '(connect)))
 
 (typelib->export "GLib" "2.0" 'g/ %badnames)
 (typelib->export "Gio" "2.0" 'gio/ %badnames)

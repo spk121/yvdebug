@@ -1,10 +1,28 @@
+;; Copyright 2019 Michael Gran <spk121@yahoo.com>
+;;
+;; This file is part of YVDebug.
+;;
+;; YVDebug is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;;
+;; YVDebug is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with YVDebug.  If not, see <https://www.gnu.org/licenses/>.
+
 (define-module (yvdebug main)
-  #:use-module (ice-9 command-line)
-  #:use-module (ice-9 binary-ports)
+  ;; #:use-module (ice-9 command-line)
+  ;; #:use-module (ice-9 binary-ports)
   #:use-module (yvdebug terminal)
   #:use-module (system repl repl)
   #:use-module (yvdebug typelib)
-  #:use-module (srfi srfi-43)
+  #:use-module (yvdebug errorlog)
+  ;; #:use-module (srfi srfi-43)
   #:use-module (mlg utils)
   #:use-module (mlg logging)
   #:use-module (gi)
@@ -15,14 +33,18 @@
   (let* ((mainwindow (application-window:new app))
          (builder (builder:new-from-resource "/com/lonelycactus/yvdebug/mainwindow.ui"))
          (maingrid (get-object builder "main_grid"))
-         (terminal (make-terminal (get-object builder "terminal"))))
+         (terminal (make-terminal (get-object builder "terminal")))
+         (EML (make <ErrorMessageList>)))
 
     (add mainwindow maingrid)
     (set-title mainwindow "YVDebug")
     (attach-current-io-ports terminal)
     (show-all mainwindow)
+
+    (attach-current-error-ports EML)
     (call-with-new-thread
      (lambda ()
+       (attach-current-error-ports EML)
        (start-repl #:debug #t)))
     #t))
 

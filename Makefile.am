@@ -1,3 +1,22 @@
+## Process this file with automake to produce Makefile.in.
+##
+##   Copyright (C) 2019 Michael Gran <spk121@yahoo.com>
+##
+##   This file is part of YVDebug.
+##
+##   YVDebug is free software: you can redistribute it and/or modify
+##   it under the terms of the GNU General Public License as published
+##   by the Free Software Foundation, either version 3 of the License,
+##   or (at your option) any later version.
+##
+##   YVDebug is distributed in the hope that it will be useful, but
+##   WITHOUT ANY WARRANTY; without even the implied warranty of
+##   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+##   General Public License for more details.
+##
+##   You should have received a copy of the GNU General Public License
+##   along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
+
 ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
 AM_DISTCHECK_CONFIGURE_FLAGS = --with-gnu-filesystem-hierarchy
 
@@ -56,6 +75,7 @@ pkgguilesitedir = $(guilesitedir)/yvdebug
 pkgguileobjectdir = $(guileobjectdir)/yvdebug
 
 dist_pkgguilesite_DATA = \
+  module/yvdebug/errorlog.scm \
   module/yvdebug/main.scm \
   module/yvdebug/terminal.scm \
   module/yvdebug/typelib.scm

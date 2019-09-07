@@ -6,13 +6,19 @@
   #:use-module (yvdebug typelib)
   #:use-module (srfi srfi-43)
   #:use-module (mlg utils)
+  #:use-module (mlg logging)
+  #:use-module (gi)
   #:export (go))
 
 (define (activate app)
   ;; Construct a GtkBuilder instance and load our UI description.
-  (let* ((builder (builder:new-from-resource "/com/lonelycactus/yvdebug/mainwindow.ui"))
-         (mainwindow (get-object builder "mainwindow"))
+  (let* ((mainwindow (application-window:new app))
+         (builder (builder:new-from-resource "/com/lonelycactus/yvdebug/mainwindow.ui"))
+         (maingrid (get-object builder "main_grid"))
          (terminal (make-terminal (get-object builder "terminal"))))
+
+    (add mainwindow maingrid)
+    (set-title mainwindow "YVDebug")
     (attach-current-io-ports terminal)
     (show-all mainwindow)
     (call-with-new-thread
@@ -21,17 +27,17 @@
     #t))
 
 (define (go args)
+  ;; Load the resources bundle: UI files, etc
   (let ((gresource (find-data-file "yvdebug/yvdebug.gresource")))
-    (unless gresource
-      (error "Could not open ~S" "yvdebug.gresource"))
-    (format #t "Found resource file ~S" gresource)
-    (init)
-    (resources-register (resource:load gresource))
+    (if gresource
+        (log-debug "found resource file ~S" gresource)
+        (log-error "could not find or open yvdebug.gresource resource file"))
+
     (let ((app (application:new "com.lonelycactus.yvdebug"
                                 (number->application-flags 0))))
+      (resources-register (resource:load gresource))
       (connect app application:activate activate)
-      
+
       ;; Don't pass command line here: We don't want any of the command
       ;; line being interpreted by Gtk.
-      (application:run app)
-      #t)))
+      (run app))))

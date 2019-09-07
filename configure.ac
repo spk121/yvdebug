@@ -61,6 +61,5 @@ AS_CASE(["x$with_gnu_filesystem_hierarchy"], [xyes],
 
 
 AC_CONFIG_FILES([Makefile])
-AC_CONFIG_FILES([src/yvdebug], [chmod +x src/yvdebug])
 
 AC_OUTPUT

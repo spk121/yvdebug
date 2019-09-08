@@ -19,14 +19,15 @@
 ;; and the current-warn-port of our Guile REPL.
 
 (define-module (yvdebug errorlog)
-  #:use-module (rnrs bytevectors)
-  #:use-module (oop goops)
-  #:use-module (yvdebug typelib)
-  #:use-module (mlg bytevectors)
-  #:use-module (mlg logging)
   #:use-module (ice-9 binary-ports)
   #:use-module (ice-9 ports)
-  #:export (<ErrorMessageList>
+  #:use-module (rnrs bytevectors)
+  #:use-module (oop goops)
+  #:use-module (mlg bytevectors)
+  #:use-module (mlg logging)
+  #:use-module (mlg strings)
+  #:use-module (yvdebug typelib)
+  #:export (make-error-log
             attach-current-error-ports))
 
 ;; The ErrorMessageList is an ordered list of (number,string) pairs,
@@ -46,11 +47,14 @@
 (define-class <ErrorMessageList> ()
   ;; The actual list
   (lst #:init-value '() #:getter get-list #:setter set-list!)
-  
+
+  ;; A reference to a ErrorLog
+  (errorlog #:init-value #f #:getter get-errorlog #:setter set-errorlog!)
+
   ;; The custom error and warning ports
   (errport #:init-value #f #:getter get-errport #:setter set-errport!)
   (warnport #:init-value #f #:getter get-warnport #:setter set-warnport!)
-  
+
   ;; Are we capturing the current-error-port and current-warn-port?
   (attached? #:init-value #f #:getter is-attached? #:setter set-attached-flag!)
   (stderr #:init-value (current-error-port) #:getter get-stderr)
@@ -67,6 +71,7 @@
                          (get-list EML)))
       ;; We processed all the bytes.
       (log-debug "The list ~S" (get-list EML))
+      (and=> (get-errorlog EML) update-text-buf)
       count))
   (define (close)
     ;; I don't think the error or warnings ports get closed.
@@ -105,6 +110,90 @@ standard error and warning ports"
   (set-current-error-port (get-stderr EML))
   (set! current-warning-port (get-stdwarn EML)))
 
+(define-method (clear-list (EML <ErrorMessageList>))
+  (set-list! EML '()))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;; The <ErrorLog> widget is the 'view' to the <ErrorMessageList>
 ;; model.  It displays the <ErrorMessageList> in the <GtkTextView>,
 ;; with buttons and search boxes restrict what get shown.
+
+;; on press, errorlog_clear_button clears delete the list in the EML
+
+;; When on, errorlog_error_toggle_button, and errorlog_warning_toggle_button
+;; allow the display of those messages.
+
+;; On 'activate', the text of the errorlog_search_entry, restricts
+;; the output to lines containing that text
+
+(define-class <ErrorLog> ()
+  ;; The widgets
+  (txt-view #:init-value #f #:getter get-txt-view #:setter set-txt-view!
+            #:init-keyword #:txt-view)
+  (txt-buf #:init-value #f #:getter get-txtbuf #:setter set-txtbuf!
+           #:init-keyword #:txt-buf)
+  (tag-table #:init-value #f #:getter get-tag-table #:setter set-tab-table!
+             #:init-keyword #:tag-table)
+  (clear-btn #:init-value #f #:getter get-clear-btn
+             #:init-keyword #:clear-btn)
+  (error-toggle-btn #:getter get-error-toggle-btn
+                    #:init-keyword #:error-toggle-btn)
+  (warning-toggle-btn #:getter get-warning-toggle-btn
+                      #:init-keyword #:warning-toggle-btn)
+  (search-entry #:getter get-search-entry
+                #:init-keyword #:search-entry)
+  (scrollbar
+   #:init-keyword #:scrollbar)
+
+  ;; The model
+  (message-list #:getter get-message-list
+   #:init-keyword #:message-list))
+
+(define (make-error-log txt-view clear-btn error-toggle-btn warning-toggle-btn
+                        search-entry scrollbar)
+  (let* ((tag-table (text-tag-table:new))
+         (txt-buf (text-buffer:new tag-table))
+         (MessageList (make <ErrorMessageList>)))
+    (set-buffer txt-view txt-buf)
+    (let ((ErrorLog (make <ErrorLog>
+                      #:txt-view txt-view
+                      #:txt-buf txt-buf
+                      #:tag-table tag-table
+                      #:clear-btn clear-btn
+                      #:error-toggle-btn error-toggle-btn
+                      #:warning-toggle-btn warning-toggle-btn
+                      #:scrollbar scrollbar
+                      #:search-entry search-entry
+                      #:message-list MessageList)))
+      (set-errorlog! MessageList ErrorLog)
+      ErrorLog)))
+
+(define-method (attach-current-error-ports (errlog <ErrorLog>))
+  (attach-current-error-ports (get-message-list errlog)))
+
+(define-method (update-text-buf (errlog <ErrorLog>))
+  (let ((show-warnings (get-active? (get-error-toggle-btn errlog)))
+        (show-errors (get-active? (get-warning-toggle-btn errlog)))
+        (search-text (get-text (get-search-entry errlog)))
+        (messages (get-list (get-message-list errlog))))
+    (define (filter-message message)
+      (let ((severity (car message))
+            (text (cdr message)))
+        (cond
+         ((and (not show-warnings)
+               (= severity EML_WARNING))
+          "")
+         ((and (not show-errors)
+               (= severity EML_ERROR))
+          "")
+         ((not (string-contains text search-text))
+          "")
+         (else
+          (string-append
+           (string-ensure-single-newline text))))))
+    (log-debug "update text: warnings ~s errors ~s searchtxt ~s"
+               show-warnings show-errors search-text)
+    (let ((body-text (string-append-map filter-message messages)))
+      (log-debug "Setting body text to ~S" body-text)
+      (set-text (get-txtbuf errlog) body-text -1))))

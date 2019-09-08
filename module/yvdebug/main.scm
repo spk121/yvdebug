@@ -18,35 +18,47 @@
 (define-module (yvdebug main)
   ;; #:use-module (ice-9 command-line)
   ;; #:use-module (ice-9 binary-ports)
-  #:use-module (yvdebug terminal)
   #:use-module (system repl repl)
-  #:use-module (yvdebug typelib)
-  #:use-module (yvdebug errorlog)
-  ;; #:use-module (srfi srfi-43)
+  #:use-module (srfi srfi-11)
   #:use-module (mlg utils)
   #:use-module (mlg logging)
   #:use-module (gi)
+  #:use-module (yvdebug terminal)
+  #:use-module (yvdebug typelib)
+  #:use-module (yvdebug errorlog)
   #:export (go))
 
 (define (activate app)
   ;; Construct a GtkBuilder instance and load our UI description.
-  (let* ((mainwindow (application-window:new app))
-         (builder (builder:new-from-resource "/com/lonelycactus/yvdebug/mainwindow.ui"))
-         (maingrid (get-object builder "main_grid"))
-         (terminal (make-terminal (get-object builder "terminal")))
-         (EML (make <ErrorMessageList>)))
-
-    (add mainwindow maingrid)
-    (set-title mainwindow "YVDebug")
-    (attach-current-io-ports terminal)
-    (show-all mainwindow)
-
-    (attach-current-error-ports EML)
-    (call-with-new-thread
-     (lambda ()
-       (attach-current-error-ports EML)
-       (start-repl #:debug #t)))
-    #t))
+  (let* ((main-window (application-window:new app))
+         (builder (builder:new-from-resource "/com/lonelycactus/yvdebug/mainwindow.ui")))
+    (define (obj str)
+      (warn-if-false (get-object builder str)))
+    (let ((main-grid (obj "main-grid"))
+          (terminal (obj "terminal"))
+          (terminal-scrollbar (obj "terminal-scrollbar"))
+          (errorlog-text-view (obj "errorlog-text-view"))
+          (errorlog-scrollbar (obj "errorlog-scrollbar"))
+          (errorlog-clear-button (obj "errorlog-clear-button"))
+          (errorlog-error-toggle-button (obj "errorlog-error-toggle-button"))
+          (errorlog-warning-toggle-button (obj "errorlog-warning-toggle-button"))
+          (errorlog-search-entry (obj "errorlog-search-entry")))
+      (add main-window main-grid)
+      (set-title main-window "YVDebug")
+      (let ((Terminal (make-terminal terminal))
+            (ErrorLog (make-error-log errorlog-text-view
+                                      errorlog-clear-button
+                                      errorlog-error-toggle-button
+                                      errorlog-warning-toggle-button
+                                      errorlog-search-entry
+                                      errorlog-scrollbar)))
+        (attach-current-io-ports Terminal)
+        (attach-current-error-ports ErrorLog)
+        (show-all main-window)
+        (call-with-new-thread
+         (lambda ()
+           (attach-current-error-ports ErrorLog)
+           (start-repl #:debug #t)))))))
 
 (define (go args)
   ;; Load the resources bundle: UI files, etc

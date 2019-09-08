@@ -69,6 +69,7 @@ it."
 (define-method (make-terminal terminal)
   (let* ((pty-pair (make-pty-port-pair))
          (vte-pty (pty:new-foreign-sync (port->fdes (car pty-pair)))))
+    (set-size terminal 80 25)
     (set-pty terminal vte-pty)
     (set-termios-to-defaults (car pty-pair))
     (set-termios-to-defaults (cdr pty-pair))

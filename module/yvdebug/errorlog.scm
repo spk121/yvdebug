@@ -26,6 +26,7 @@
   #:use-module (mlg bytevectors)
   #:use-module (mlg logging)
   #:use-module (mlg strings)
+  #:use-module (gi)
   #:use-module (yvdebug typelib)
   #:export (make-error-log
             attach-current-error-ports))
@@ -167,6 +168,19 @@ standard error and warning ports"
                       #:search-entry search-entry
                       #:message-list MessageList)))
       (set-errorlog! MessageList ErrorLog)
+      (connect error-toggle-btn toggled
+               (lambda x
+                 (update-text-buf ErrorLog)))
+      (connect warning-toggle-btn toggled
+               (lambda x
+                 (update-text-buf ErrorLog)))
+      (connect search-entry search-changed
+               (lambda x
+                 (update-text-buf ErrorLog)))
+      (connect clear-btn clicked
+               (lambda x
+                 (clear-list MessageList)
+                 (update-text-buf ErrorLog)))
       ErrorLog)))
 
 (define-method (attach-current-error-ports (errlog <ErrorLog>))

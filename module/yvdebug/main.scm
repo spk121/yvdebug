@@ -16,7 +16,8 @@
 ;; along with YVDebug.  If not, see <https://www.gnu.org/licenses/>.
 
 (define-module (yvdebug main)
-  ;; #:use-module (ice-9 command-line)
+  #:use-module (ice-9 control)
+  #:use-module (ice-9 top-repl)
   ;; #:use-module (ice-9 binary-ports)
   #:use-module (system repl repl)
   #:use-module (srfi srfi-11)
@@ -26,6 +27,7 @@
   #:use-module (yvdebug terminal)
   #:use-module (yvdebug typelib)
   #:use-module (yvdebug errorlog)
+  #:use-module (yvdebug interpreter)
   #:export (go))
 
 (define (activate app)
@@ -55,10 +57,7 @@
         (attach-current-io-ports Terminal)
         (attach-current-error-ports ErrorLog)
         (show-all main-window)
-        (call-with-new-thread
-         (lambda ()
-           (attach-current-error-ports ErrorLog)
-           (start-repl #:debug #t)))))))
+        (run-interpreter (command-line) Terminal)))))
 
 (define (go args)
   ;; Load the resources bundle: UI files, etc

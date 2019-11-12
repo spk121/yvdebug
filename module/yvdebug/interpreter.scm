@@ -16,56 +16,27 @@
 ;; along with YVDebug.  If not, see <https://www.gnu.org/licenses/>.
 
 (define-module (yvdebug interpreter)
+  #:use-module (system vm vm)
   #:use-module (srfi srfi-1)
   #:use-module (ice-9 command-line)
   #:use-module (ice-9 threads)
+  #:use-module (oop goops)
+  #:use-module (mlg assert)
   #:use-module (yvdebug terminal)
-  #:export (run-interpreter))
-
-(define (get-integer-from-environment var def)
-  (let ((val (getenv var)))
-    (cond
-     ((not val)
-      def)
-     (else
-      (let ((res (false-if-exception (inexact->exact (string->number val)))))
-        (if (not res)
-            (begin
-              (format (current-error-port) "yvdebug: warning: invalid ~s: ~s\n"
-                      var val)
-              def)
-            res))))))
-
-(define (should-install-locale)
-  (get-integer-from-environment "GUILE_INSTALL_LOCALE" 1))
-
-(define (inner-main argv)
-  "aka scm-shell"
-  (eval (compile-shell-switches argv)
-        (current-module)))
+  #:use-module (yvdebug errorlog)
+  #:export (spawn-interpreter-thread))
 
 (define (rejigger-program-arguments argv)
   (let* ((argv2
-          (fold 
+          (fold
            (lambda (x prev)
              (if (member x '("--no-debug" "--debug" "-q"))
                  prev
                  (append (list x) prev)))
            '()
-           argv))
-         (argv3 (append argv2 '("--debug" "-q"))))
-    (format #t "COMMANDLINEARGS ~S~%" argv3)
-    argv3))
-
-(define (scm-boot-guile main-func argv)
-  (exit (call-with-new-thread
-         (lambda ()
-           (when (should-install-locale)
-             (setlocale LC_ALL ""))
-           (let ((ret (main-func (command-line))))
-             (restore-signals)
-             (usleep 10)
-             ret)))))
+           argv)))
+    (format #t "COMMANDLINEARGS ~S~%" argv2)
+    argv2))
 
 (define (make-entry-point argv)
   "This parses the command line arguments to create a procedure that

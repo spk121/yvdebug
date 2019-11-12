@@ -29,6 +29,9 @@
   (stdin #:init-value (current-input-port) #:getter get-stdin)
   (stdout #:init-value (current-output-port) #:getter get-stdout))
 
+(define (terminal? x)
+  (is-a? x <Terminal>))
+
 (define (make-master-pty)
   "Ask the kernel to make a pseudoterminal and make a Guile port from
 it."

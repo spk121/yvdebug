@@ -51,7 +51,7 @@ uninstall-local:
 	xdg-icon-resource forceupdate
 
 # UI files
-RESOURCE_FILES = data/mainwindow.ui
+RESOURCE_FILES = data/mainwindow.ui data/headerbar.ui
 
 data/yvdebug.gresource: data/yvdebug.gresource.xml $(RESOURCE_FILES)
 	glib-compile-resources --sourcedir=data --target=$@ $<

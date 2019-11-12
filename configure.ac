@@ -1,6 +1,7 @@
 AC_INIT([YVDebug], [0.0.1], [spk121@yahoo.com], [yvdebug])
 
 AC_CONFIG_AUX_DIR([build-aux])
+AC_REQUIRE_AUX_FILE([test-driver.scm])
 AM_INIT_AUTOMAKE
 
 AC_PREREQ([2.63])

@@ -21,6 +21,7 @@
   ;; #:use-module (ice-9 binary-ports)
   #:use-module (system repl repl)
   #:use-module (srfi srfi-11)
+  #:use-module (srfi srfi-69)
   #:use-module (mlg utils)
   #:use-module (mlg logging)
   #:use-module (gi)
@@ -30,13 +31,22 @@
   #:use-module (yvdebug interpreter)
   #:export (go))
 
+(define *main-window* #f)
+(define *terminal* #f)
+(define *errorlog* #f)
+(define *interpreter-thread* #f)
+(define *app* #f)
+
 (define (activate app)
   ;; Construct a GtkBuilder instance and load our UI description.
-  (let* ((main-window (application-window:new app))
+  (let* ([main-window (application-window:new app)]
+         [builder-headerbar (builder:new-from-resource "/com/lonelycactus/yvdebug/headerbar.ui")]
          (builder (builder:new-from-resource "/com/lonelycactus/yvdebug/mainwindow.ui")))
     (define (obj str)
-      (warn-if-false (get-object builder str)))
-    (let ((main-grid (obj "main-grid"))
+      (warn-val-if-false (get-object builder str) str))
+    (let ((main-box (obj "main-box"))
+          (main-switcher (obj "main-switcher"))
+          (console-stack (obj "console-stack"))
           (terminal (obj "terminal"))
           (terminal-scrollbar (obj "terminal-scrollbar"))
           (errorlog-text-view (obj "errorlog-text-view"))
@@ -44,8 +54,18 @@
           (errorlog-clear-button (obj "errorlog-clear-button"))
           (errorlog-error-toggle-button (obj "errorlog-error-toggle-button"))
           (errorlog-warning-toggle-button (obj "errorlog-warning-toggle-button"))
-          (errorlog-search-entry (obj "errorlog-search-entry")))
-      (add main-window main-grid)
+          (errorlog-search-entry (obj "errorlog-search-entry"))
+          [headerbar (get-object builder-headerbar "headerbar")])
+      (set! *app*
+        (list main-box main-switcher console-stack terminal
+              terminal-scrollbar errorlog-text-view errorlog-scrollbar
+              errorlog-clear-button errorlog-error-toggle-button
+              errorlog-warning-toggle-button
+              errorlog-search-entry
+              headerbar))
+      (add main-window main-box)
+      (set-titlebar main-window headerbar)
+      (set-stack main-switcher console-stack)
       (set-title main-window "YVDebug")
       (let ((Terminal (make-terminal terminal))
             (ErrorLog (make-error-log errorlog-text-view
@@ -57,10 +77,29 @@
         (attach-current-io-ports Terminal)
         (attach-current-error-ports ErrorLog)
         (show-all main-window)
-        (run-interpreter (command-line) Terminal)))))
+        (set! *main-window* main-window)
+        (set! *terminal* Terminal)
+        (set! *errorlog* ErrorLog)
+        (set! *interpreter-thread*
+          (spawn-interpreter-thread (command-line) Terminal ErrorLog)))))
+  ;; activate signal returns void
+  
+  )
 
 (define (go args)
   ;; Load the resources bundle: UI files, etc
+  (set! %load-hook
+    (lambda (filename)
+      (format (current-error-port) "Loading ~a\n" filename)))
+  (add-hook! after-gc-hook
+             (lambda ()
+               (format (current-error-port) "GC!\n")))
+  (add-hook! module-defined-hook
+             (lambda (module)
+               (format (current-error-port) "module defined ~a\n" module)
+               (hash-for-each (lambda (key val)
+                                (format (current-error-port) "~a=~a\n" key val))
+                              (module-obarray module))))
   (let ((gresource (find-data-file "yvdebug/yvdebug.gresource")))
     (if gresource
         (log-debug "found resource file ~S" gresource)

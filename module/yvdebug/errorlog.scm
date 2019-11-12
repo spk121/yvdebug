@@ -69,8 +69,9 @@
     (let ((linestr (utf8->string (subbytevector bv index count))))
       (log-debug "New error port entry: Severity ~S Message ~S" severity linestr)
       (set-list! EML
-                 (append (list (cons severity linestr))
-                         (get-list EML)))
+                 (append (get-list EML)
+                         (list (cons severity linestr))
+                         ))
       ;; We processed all the bytes.
       (log-debug "The list ~S" (get-list EML))
       (and=> (get-errorlog EML) update-text-buf)
@@ -214,4 +215,5 @@ standard error and warning ports"
                show-warnings show-errors search-text)
     (let ((body-text (string-append-map filter-message messages)))
       (log-debug "Setting body text to ~S" body-text)
+      (log-debug "Txtbuf is ~S" (get-txtbuf errlog))
       (set-text (get-txtbuf errlog) body-text -1))))

@@ -29,7 +29,8 @@
   #:use-module (gi)
   #:use-module (yvdebug typelib)
   #:export (make-error-log
-            attach-current-error-ports))
+            attach-current-error-ports
+            errorlog?))
 
 ;; The ErrorMessageList is an ordered list of (number,string) pairs,
 ;; where the number indicates the message severity (either ERROR or
@@ -150,6 +151,9 @@ standard error and warning ports"
   ;; The model
   (message-list #:getter get-message-list
    #:init-keyword #:message-list))
+
+(define (errorlog? x)
+  (is-a? x <ErrorLog>))
 
 (define (make-error-log txt-view clear-btn error-toggle-btn warning-toggle-btn
                         search-entry scrollbar)

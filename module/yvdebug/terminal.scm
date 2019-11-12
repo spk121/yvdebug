@@ -8,7 +8,8 @@
   #:export (make-terminal
             get-vte-terminal
             attach-current-io-ports
-            detach-current-io-ports))
+            detach-current-io-ports
+            terminal?))
 
 (define-class <Terminal> ()
   ;; The master-pty is owned by this terminal widget

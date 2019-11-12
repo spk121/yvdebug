@@ -67,16 +67,40 @@
              (usleep 10)
              ret)))))
 
-(define (run-interpreter argv Terminal)
+(define (make-entry-point argv)
+  "This parses the command line arguments to create a procedure that
+can be called as the entry point of this script.  This procedure lives
+in its own prompt."
+  (assert (list? argv))
+  ;; When the real Guile interpreter spawns, it checks to see
+  ;; if it should call setlocale.  But since this interpreter
+  ;; is already running in Guile, I guess we assume that it is
+  ;; taken care of.
+  ;; (when (should-install-locale?)
+  ;;   (setlocale LC_ALL ""))
+
+  ;; Maybe we need to cull some standard Guile command-line
+  ;; arguments
+  (set-program-arguments (rejigger-program-arguments argv))
+
+  ;; Generically we'd run (ice-9 top-repl) but if we're passed
+  ;; a script, we'll start there
+  (compile-shell-switches argv))
+
+(define (spawn-interpreter-thread argv terminal errlog)
+  "Spawns and returns a new thread.  In that thread, parse a
+command-line argument list and then run a Guile interpreter. Bind the
+thread's I/O ports to the GUI's terminal and errlog widgets."
+  (assert (list? argv))
+  (assert (terminal? terminal))
+  (assert (errorlog? errlog))
   (call-with-new-thread
    (lambda ()
-     ;(set-current-input-port (fdopen 0 "r0"))
-     ;(set-current-output-port (fdopen 1 "w0"))
-     (attach-current-io-ports Terminal)
-     (when (should-install-locale)
-       (setlocale LC_ALL ""))
-     (set-program-arguments (rejigger-program-arguments argv))
-     (let ((ret (eval (compile-shell-switches argv) (current-module))))
+     (attach-current-io-ports terminal)
+     (attach-current-error-ports errlog)
+     (let ([entry-point (make-entry-point argv)])
        (restore-signals)
        (usleep 10)
-       ret))))
+       (eval entry-point (current-module))
+       (usleep 10)
+       0))))

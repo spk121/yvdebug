@@ -156,6 +156,8 @@ standard error and warning ports"
 (define (errorlog? x)
   (is-a? x <ErrorLog>))
 
+(define *error-log-cur* #f)
+
 (define (make-error-log txt-view clear-btn error-toggle-btn warning-toggle-btn
                         search-entry scrollbar)
   (let* ((tag-table (text-tag-table:new))
@@ -186,16 +188,17 @@ standard error and warning ports"
                (lambda x
                  (clear-list MessageList)
                  (update-text-buf ErrorLog)))
+      (set! *error-log-cur* ErrorLog)
       ErrorLog)))
 
 (define-method (attach-current-error-ports (errlog <ErrorLog>))
   (attach-current-error-ports (get-message-list errlog)))
 
-(define-method (update-text-buf (errlog <ErrorLog>))
-  (let ((show-warnings (get-active? (get-error-toggle-btn errlog)))
-        (show-errors (get-active? (get-warning-toggle-btn errlog)))
-        (search-text (get-text (get-search-entry errlog)))
-        (messages (get-list (get-message-list errlog))))
+(define-method (_update-text-buf user-data)
+  (let ((show-warnings (get-active? (get-error-toggle-btn *error-log-cur*)))
+        (show-errors (get-active? (get-warning-toggle-btn *error-log-cur*)))
+        (search-text (get-text (get-search-entry *error-log-cur*)))
+        (messages (get-list (get-message-list *error-log-cur*))))
     (define (filter-message message)
       (let ((severity (car message))
             (text (cdr message)))
@@ -215,5 +218,13 @@ standard error and warning ports"
                show-warnings show-errors search-text)
     (let ((body-text (string-append-map filter-message messages)))
       (log-debug "Setting body text to ~S" body-text)
-      (log-debug "Txtbuf is ~S" (get-txtbuf errlog))
-      (set-text (get-txtbuf errlog) body-text -1))))
+      (log-debug "Txtbuf is ~S" (get-txtbuf *error-log-cur*))
+      (set-text (get-txtbuf *error-log-cur*) body-text -1)
+      ))
+  #f)
+
+(define-method (update-text-buf (errlog <ErrorLog>))
+  (write "update-text-buf\n")
+  (backtrace)
+  (sleep 1)
+  (idle-add PRIORITY_DEFAULT_IDLE _update-text-buf))

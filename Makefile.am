@@ -78,7 +78,8 @@ dist_pkgguilesite_DATA = \
   module/yvdebug/errorlog.scm \
   module/yvdebug/main.scm \
   module/yvdebug/terminal.scm \
-  module/yvdebug/typelib.scm
+  module/yvdebug/typelib.scm \
+  module/yvdebug/interpreter.scm
 
 pkgguileobject_DATA = \
   $(dist_pkgguilesite_DATA:%.scm=%.go)

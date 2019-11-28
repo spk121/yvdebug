@@ -21,8 +21,10 @@
 (define-module (yvdebug errorlog)
   #:use-module (ice-9 binary-ports)
   #:use-module (ice-9 ports)
+  #:use-module (ice-9 threads)
   #:use-module (rnrs bytevectors)
   #:use-module (oop goops)
+  #:use-module (mlg assert)
   #:use-module (mlg bytevectors)
   #:use-module (mlg logging)
   #:use-module (mlg strings)
@@ -49,9 +51,7 @@
 (define-class <ErrorMessageList> ()
   ;; The actual list
   (lst #:init-value '() #:getter get-list #:setter set-list!)
-
-  ;; A reference to a ErrorLog
-  (errorlog #:init-value #f #:getter get-errorlog #:setter set-errorlog!)
+  (lst-mutex #:init-thunk make-mutex #:getter get-list-mutex)
 
   ;; The custom error and warning ports
   (errport #:init-value #f #:getter get-errport #:setter set-errport!)
@@ -67,19 +67,21 @@
   (define (the-write! bv index count)
     ;; We're line buffered, so hopefully this is one line's data.
     (let ((linestr (utf8->string (subbytevector bv index count))))
-      (log-debug "New error port entry: Severity ~S Message ~S" severity linestr)
-      (set-list! EML
-                 (append (get-list EML)
-                         (list (cons severity linestr))
-                         ))
-      ;; We processed all the bytes.
-      (log-debug "The list ~S" (get-list EML))
-      (and=> (get-errorlog EML) update-text-buf)
-      count))
+      (with-mutex (get-list-mutex EML)
+        (set-list! EML
+                   (append (get-list EML)
+                           (list (cons severity linestr))))
+        (idle-add PRIORITY_DEFAULT_IDLE
+                  (lambda x
+                    ;; (with-mutex (get-list-mutex EML)
+                    (update-text-buf *error-log-cur*)
+                      #f)
+                  ;; )
+                  )))
+    count)
   (define (close)
     ;; I don't think the error or warnings ports get closed.
     (warn-if-reached))
-  (log-debug "In define-error-port ~S ~S" EML severity)
   (let ((port
          (make-custom-binary-output-port "logport"
                                          the-write!
@@ -144,7 +146,7 @@ standard error and warning ports"
                     #:init-keyword #:error-toggle-btn)
   (warning-toggle-btn #:getter get-warning-toggle-btn
                       #:init-keyword #:warning-toggle-btn)
-  (search-entry #:getter get-search-entry
+  (search-entry #:init-value "" #:getter get-search-entry
                 #:init-keyword #:search-entry)
   ;; The model
   (message-list #:getter get-message-list
@@ -170,7 +172,6 @@ standard error and warning ports"
                       #:warning-toggle-btn warning-toggle-btn
                       #:search-entry search-entry
                       #:message-list MessageList)))
-      (set-errorlog! MessageList ErrorLog)
       (connect error-toggle-btn toggled
                (lambda x
                  (update-text-buf ErrorLog)))
@@ -184,43 +185,72 @@ standard error and warning ports"
                (lambda x
                  (clear-list MessageList)
                  (update-text-buf ErrorLog)))
+
+      ;; Make a mark to point to the end of the buffer.
+      (let ([end-iter (make <GtkTextIter>)])
+        (get-end-iter txt-buf end-iter)
+        (text-buffer:create-mark txt-buf "end-mark" end-iter #f))
+
       (set! *error-log-cur* ErrorLog)
+
       ErrorLog)))
 
 (define-method (attach-current-error-ports (errlog <ErrorLog>))
   (attach-current-error-ports (get-message-list errlog)))
 
-(define-method (_update-text-buf user-data)
-  (let ((show-warnings (get-active? (get-error-toggle-btn *error-log-cur*)))
-        (show-errors (get-active? (get-warning-toggle-btn *error-log-cur*)))
-        (search-text (get-text (get-search-entry *error-log-cur*)))
-        (messages (get-list (get-message-list *error-log-cur*))))
-    (define (filter-message message)
-      (let ((severity (car message))
-            (text (cdr message)))
-        (cond
-         ((and (not show-warnings)
-               (= severity EML_WARNING))
-          "")
-         ((and (not show-errors)
-               (= severity EML_ERROR))
-          "")
-         ((not (string-contains text search-text))
-          "")
-         (else
-          (string-append
-           (string-ensure-single-newline text))))))
-    (log-debug "update text: warnings ~s errors ~s searchtxt ~s"
-               show-warnings show-errors search-text)
-    (let ((body-text (string-append-map filter-message messages)))
-      (log-debug "Setting body text to ~S" body-text)
-      (log-debug "Txtbuf is ~S" (get-txtbuf *error-log-cur*))
-      (set-text (get-txtbuf *error-log-cur*) body-text -1)
-      ))
-  #f)
+(define (filter-message message show-warnings show-errors search-text)
+  (assert (pair? message))
+  (assert (string? search-text))
+  (let ((severity (car message))
+        (text (cdr message)))
+    (assert (number? severity))
+    (assert (string? text))
+    (cond
+     ((and (not show-warnings)
+           (= severity EML_WARNING))
+      "")
+     ((and (not show-errors)
+           (= severity EML_ERROR))
+      "")
+     ((not (string-contains text search-text))
+      "")
+     (else
+      (string-append
+       (cond
+        ((= severity EML_ERROR) "🛑 ")
+        ((= severity EML_WARNING) "⚠ ")
+        (else
+         "  "))
+       (string-ensure-single-newline text))))))
 
-(define-method (update-text-buf (errlog <ErrorLog>))
-  (write "update-text-buf\n")
-  (backtrace)
-  (sleep 1)
-  (idle-add PRIORITY_DEFAULT_IDLE _update-text-buf))
+(define-method (update-text-buf ErrorLog)
+  "Update the text contents of the error log.  This makes a text
+rendering of the <ErrorMessageList> based on the state of the toggle
+buttons and the search filter box"
+  (let ((show-warnings (get-active? (get-error-toggle-btn ErrorLog)))
+        (show-errors (get-active? (get-warning-toggle-btn ErrorLog)))
+        (search-text (get-text (get-search-entry ErrorLog)))
+        (messages (get-list (get-message-list ErrorLog))))
+    (let ([body-text (string-append-map
+                      (lambda (msg)
+                        (filter-message msg show-warnings show-errors search-text))
+                      messages)]
+          [txtbuf (get-txtbuf ErrorLog)])
+      (set-text txtbuf body-text -1)
+
+      ;; Later, scroll to bottom.  You can't scroll to bottom
+      ;; immediately because the text view has to absorb the text
+      ;; first, so we wait one tick.
+      (idle-add PRIORITY_DEFAULT_IDLE
+                (lambda x
+                  ;; Scroll to bottom
+                  (let ([end-iter (make <GtkTextIter>)]
+                        [lines-num (get-line-count txtbuf)]
+                        [end-mark (get-mark txtbuf "end-mark")])
+                    (get-iter-at-line txtbuf end-iter (1- lines-num))
+                    (move-mark txtbuf end-mark end-iter)
+                    (scroll-mark-onscreen (get-txt-view ErrorLog) end-mark))
+                  #f ; don't keep running
+                  ))))
+
+  #f)

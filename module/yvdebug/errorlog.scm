@@ -146,9 +146,6 @@ standard error and warning ports"
                       #:init-keyword #:warning-toggle-btn)
   (search-entry #:getter get-search-entry
                 #:init-keyword #:search-entry)
-  (scrollbar
-   #:init-keyword #:scrollbar)
-
   ;; The model
   (message-list #:getter get-message-list
    #:init-keyword #:message-list))
@@ -159,7 +156,7 @@ standard error and warning ports"
 (define *error-log-cur* #f)
 
 (define (make-error-log txt-view clear-btn error-toggle-btn warning-toggle-btn
-                        search-entry scrollbar)
+                        search-entry)
   (let* ((tag-table (text-tag-table:new))
          (txt-buf (text-buffer:new tag-table))
          (MessageList (make <ErrorMessageList>)))
@@ -171,7 +168,6 @@ standard error and warning ports"
                       #:clear-btn clear-btn
                       #:error-toggle-btn error-toggle-btn
                       #:warning-toggle-btn warning-toggle-btn
-                      #:scrollbar scrollbar
                       #:search-entry search-entry
                       #:message-list MessageList)))
       (set-errorlog! MessageList ErrorLog)

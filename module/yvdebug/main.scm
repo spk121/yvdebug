@@ -50,7 +50,6 @@
           (terminal (obj "terminal"))
           (terminal-scrollbar (obj "terminal-scrollbar"))
           (errorlog-text-view (obj "errorlog-text-view"))
-          (errorlog-scrollbar (obj "errorlog-scrollbar"))
           (errorlog-clear-button (obj "errorlog-clear-button"))
           (errorlog-error-toggle-button (obj "errorlog-error-toggle-button"))
           (errorlog-warning-toggle-button (obj "errorlog-warning-toggle-button"))
@@ -58,7 +57,7 @@
           [headerbar (get-object builder-headerbar "headerbar")])
       (set! *app*
         (list main-box main-switcher console-stack terminal
-              terminal-scrollbar errorlog-text-view errorlog-scrollbar
+              terminal-scrollbar errorlog-text-view
               errorlog-clear-button errorlog-error-toggle-button
               errorlog-warning-toggle-button
               errorlog-search-entry
@@ -72,8 +71,7 @@
                                       errorlog-clear-button
                                       errorlog-error-toggle-button
                                       errorlog-warning-toggle-button
-                                      errorlog-search-entry
-                                      errorlog-scrollbar)))
+                                      errorlog-search-entry)))
         (attach-current-io-ports Terminal)
         (attach-current-error-ports ErrorLog)
         (show-all main-window)

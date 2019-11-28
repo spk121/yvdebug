@@ -87,17 +87,18 @@
 (define (go args)
   ;; Load the resources bundle: UI files, etc
   (set! %load-hook
-    (lambda (filename)
-      (format (current-error-port) "Loading ~a\n" filename)))
+     (lambda (filename)
+       (format (current-warning-port) "Loading ~a\n" filename)))
   (add-hook! after-gc-hook
              (lambda ()
-               (format (current-error-port) "GC!\n")))
-  (add-hook! module-defined-hook
-             (lambda (module)
-               (format (current-error-port) "module defined ~a\n" module)
-               (hash-for-each (lambda (key val)
-                                (format (current-error-port) "~a=~a\n" key val))
-                              (module-obarray module))))
+               (format (current-warning-port) "GC!\n")))
+  ;; (add-hook! module-defined-hook
+  ;;            (lambda (module)
+  ;;              (format (current-error-port) "module defined ~a\n" module)
+  ;;              (hash-for-each (lambda (key val)
+  ;;                              (format (current-error-port) "~a=~a\n" key val))
+  ;;                            (module-obarray module))
+  ;;              ))
   (let ((gresource (find-data-file "yvdebug/yvdebug.gresource")))
     (if gresource
         (log-debug "found resource file ~S" gresource)

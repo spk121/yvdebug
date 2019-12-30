@@ -32,5 +32,6 @@ exported name of procedures whose names appear in BADNAMES"
 
 (typelib->export "GLib" "2.0" 'g/ %badnames)
 (typelib->export "Gio" "2.0" 'gio/ %badnames)
+(typelib->export "Gdk" "3.0" 'gdk/ %badnames)
 (typelib->export "Gtk" "3.0" 'gtk/ %badnames)
 (typelib->export "Vte" "2.91" 'vte/ %badnames)

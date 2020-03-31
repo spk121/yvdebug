@@ -182,7 +182,7 @@ standard error and warning ports"
 
       ;; Make a mark to point to the end of the buffer.
       (let ([end-iter (make <GtkTextIter>)])
-        (get-end-iter txt-buf end-iter)
+        (get-end-iter! txt-buf end-iter)
         (text-buffer:create-mark txt-buf "end-mark" end-iter #f))
 
       (set! *error-log-cur* ErrorLog)
@@ -241,7 +241,7 @@ buttons and the search filter box"
                   (let ([end-iter (make <GtkTextIter>)]
                         [lines-num (get-line-count txtbuf)]
                         [end-mark (get-mark txtbuf "end-mark")])
-                    (get-iter-at-line txtbuf end-iter (1- lines-num))
+                    (get-iter-at-line! txtbuf end-iter (1- lines-num))
                     (move-mark txtbuf end-mark end-iter)
                     (scroll-mark-onscreen (get-txt-view ErrorLog) end-mark))
                   #f ; don't keep running

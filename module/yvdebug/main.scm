@@ -34,6 +34,7 @@
 (define *main-window* #f)
 (define *terminal* #f)
 (define *errorlog* #f)
+(define *errormsglist* #f)
 (define *interpreter-thread* #f)
 (define *app* #f)
 
@@ -70,9 +71,10 @@
                                       errorlog-clear-button
                                       errorlog-error-toggle-button
                                       errorlog-warning-toggle-button
-                                      errorlog-search-entry)))
+                                      errorlog-search-entry
+                                      *errormsglist*)))
         (attach-current-io-ports Terminal)
-        (attach-current-error-ports ErrorLog)
+        ;; (attach-current-error-ports ErrorLog)
         (show-all main-window)
         (set! *main-window* main-window)
         (set! *terminal* Terminal)
@@ -84,10 +86,13 @@
   )
 
 (define (go args)
+  ;; Capture the stderr and stdwarn right away
+  (set! *errormsglist* (make <ErrorMessageList>))
+  (attach-current-error-ports *errormsglist*)
   ;; Load the resources bundle: UI files, etc
   (set! %load-hook
      (lambda (filename)
-       (format (current-warning-port) "Loading ~a\n" filename)))
+       (format (get-infoport *errormsglist*) "Loading ~a\n" filename)))
   (add-hook! after-gc-hook
              (lambda ()
                (format (current-warning-port) "GC!\n")))

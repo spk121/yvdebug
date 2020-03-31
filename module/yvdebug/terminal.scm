@@ -21,9 +21,15 @@
   ;; The <VtePty> form of the master pty
   (vte-pty #:init-value #f #:getter get-vte-pty #:setter set-vte-pty!
            #:init-keyword #:vte-pty)
+  ;; The <GtkBox> that holds the terminal and the scrollbar
+  (box #:init-value #f #:getter get-box #:setter set-box!
+                #:init-keyword #:box)
   ;; The <VteTerminal> itself
   (vte-terminal #:init-value #f #:getter get-vte-terminal #:setter set-vte-terminal!
                 #:init-keyword #:vte-terminal)
+  ;; The <GtkScrollbar> paired with the terminal
+  (scrollbar #:init-value #f #:getter get-scrollbar #:setter set-scrollbar!
+                #:init-keyword #:scrollbar)
   ;; Are we using our slave port as current-input-port and current-output-port?
   (attached? #:init-value #f #:getter is-attached? #:setter set-attached-flag!)
   (stdin #:init-value (current-input-port) #:getter get-stdin)
@@ -69,19 +75,26 @@ it."
 (define (set-termios-to-defaults port)
   (set-termios-to-sane port))
 
-;; Assuming a new TERMINAL comes from builder.
-(define-method (make-terminal terminal)
-  (let* ((pty-pair (make-pty-port-pair))
-         (vte-pty (pty:new-foreign-sync (port->fdes (car pty-pair)))))
-    (set-size terminal 80 25)
-    (set-pty terminal vte-pty)
-    (set-termios-to-defaults (car pty-pair))
-    (set-termios-to-defaults (cdr pty-pair))
-    (make <Terminal>
-      #:master-pty (car pty-pair)
-      #:slave-pty (cdr pty-pair)
-      #:vte-pty vte-pty
-      #:vte-terminal terminal)))
+(define-method (make-terminal box)
+  (let* ((terminal (terminal:new))
+         (scrollbar (scrollbar:new (symbol->orientation 'vertical)
+                                   (get-vadjustment terminal))))
+    (let* ((pty-pair (make-pty-port-pair))
+           (vte-pty (pty:new-foreign-sync (port->fdes (car pty-pair)))))
+      (set-size terminal 80 25)
+      (set-pty terminal vte-pty)
+      (set-termios-to-defaults (car pty-pair))
+      (set-termios-to-defaults (cdr pty-pair))
+      (add box terminal)
+      (add box scrollbar)
+
+      (make <Terminal>
+        #:master-pty (car pty-pair)
+        #:slave-pty (cdr pty-pair)
+        #:vte-pty vte-pty
+        #:box box
+        #:vte-terminal terminal
+        #:scrollbar scrollbar))))
 
 (define-method (attach-current-io-ports (terminal <Terminal>))
   "All stdin/stdout is from/to the terminal widget"

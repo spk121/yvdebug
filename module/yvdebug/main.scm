@@ -47,8 +47,7 @@
     (let ((main-box (obj "main-box"))
           (main-switcher (obj "main-switcher"))
           (console-stack (obj "console-stack"))
-          (terminal (obj "terminal"))
-          (terminal-scrollbar (obj "terminal-scrollbar"))
+          (terminal-box (obj "terminal-box"))
           (errorlog-text-view (obj "errorlog-text-view"))
           (errorlog-clear-button (obj "errorlog-clear-button"))
           (errorlog-error-toggle-button (obj "errorlog-error-toggle-button"))
@@ -56,8 +55,8 @@
           (errorlog-search-entry (obj "errorlog-search-entry"))
           [headerbar (get-object builder-headerbar "headerbar")])
       (set! *app*
-        (list main-box main-switcher console-stack terminal
-              terminal-scrollbar errorlog-text-view
+        (list main-box main-switcher console-stack terminal-box
+              errorlog-text-view
               errorlog-clear-button errorlog-error-toggle-button
               errorlog-warning-toggle-button
               errorlog-search-entry
@@ -66,7 +65,7 @@
       (set-titlebar main-window headerbar)
       (set-stack main-switcher console-stack)
       (set-title main-window "YVDebug")
-      (let ((Terminal (make-terminal terminal))
+      (let ((Terminal (make-terminal terminal-box))
             (ErrorLog (make-error-log errorlog-text-view
                                       errorlog-clear-button
                                       errorlog-error-toggle-button

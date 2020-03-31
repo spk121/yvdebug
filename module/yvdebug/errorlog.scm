@@ -45,6 +45,7 @@
 ;; The message list gets copied into the GtkTextBuffer, perhaps
 ;; filtered by a search text or a message severity mask.
 
+(define EML_INFO 3)
 (define EML_WARNING 2)
 (define EML_ERROR 1)
 
@@ -56,6 +57,7 @@
   ;; The custom error and warning ports
   (errport #:init-value #f #:getter get-errport #:setter set-errport!)
   (warnport #:init-value #f #:getter get-warnport #:setter set-warnport!)
+  (infoport #:init-value #f #:getter get-infoport #:setter set-infoport!)
 
   ;; Are we capturing the current-error-port and current-warn-port?
   (attached? #:init-value #f #:getter is-attached? #:setter set-attached-flag!)
@@ -97,7 +99,9 @@
   (set-errport! EML
                 (define-error-port EML EML_ERROR))
   (set-warnport! EML
-                 (define-error-port EML EML_WARNING)))
+                 (define-error-port EML EML_WARNING))
+  (set-infoport! EML
+                 (define-error-port EML EML_INFO)))
 
 (define-method (attach-current-error-ports (EML <ErrorMessageList>))
   "All stderr/stdwarn is send to the Error Message List."

@@ -22,6 +22,7 @@
   #:use-module (ice-9 binary-ports)
   #:use-module (ice-9 ports)
   #:use-module (ice-9 threads)
+  #:use-module (srfi srfi-1)
   #:use-module (rnrs bytevectors)
   #:use-module (oop goops)
   #:use-module (mlg assert)
@@ -32,7 +33,9 @@
   #:use-module (yvdebug typelib)
   #:export (make-error-log
             attach-current-error-ports
-            errorlog?))
+            errorlog?
+            <ErrorMessageList>
+            get-infoport))
 
 ;; The ErrorMessageList is an ordered list of (number,string) pairs,
 ;; where the number indicates the message severity (either ERROR or
@@ -53,6 +56,8 @@
   ;; The actual list
   (lst #:init-value '() #:getter get-list #:setter set-list!)
   (lst-mutex #:init-thunk make-mutex #:getter get-list-mutex)
+  (new-entries-count #:init-value 0 #:getter get-new-entries-count
+                     #:setter set-new-entries-count!)
 
   ;; The custom error and warning ports
   (errport #:init-value #f #:getter get-errport #:setter set-errport!)
@@ -64,19 +69,38 @@
   (stderr #:init-value (current-error-port) #:getter get-stderr)
   (stdwarn #:init-value (current-warning-port) #:getter get-stdwarn))
 
+(define-method (increment-new-entries-count! (EML <ErrorMessageList>))
+  (set-new-entries-count! EML
+                          (1+ (get-new-entries-count EML))))
+
+(define (trim-error-string str)
+  "Remove some common error string cruft, such as initial semicolons
+or the words 'warning' or 'error' at the beginning of the string"
+  (let ((str2 (string-trim str (list->char-set '(#\; #\space)))))
+    (when (string-prefix-ci? "<unknown-location>: " str2)
+      (set! str2 (string-drop str2 20)))
+    (when (string-prefix-ci? "warning" str2)
+      (set! str2 (string-drop str2 7)))
+    (when (string-prefix-ci? "error" str2)
+      (set! str2 (string-drop str2 5)))
+    (string-trim str2 (list->char-set '(#\: #\space)))))
+
 (define-method (define-error-port (EML <ErrorMessageList>) (severity <integer>))
   "Given SEVERITY, an integer, this defines a new port"
   (define (the-write! bv index count)
     ;; We're line buffered, so hopefully this is one line's data.
     (let ((linestr (utf8->string (subbytevector bv index count))))
       (with-mutex (get-list-mutex EML)
+
+        ;; We add the new entry to the top of the list, for
+        ;; efficiency.
         (set-list! EML
-                   (append (get-list EML)
-                           (list (cons severity linestr))))
+                   (cons (cons severity (trim-error-string linestr))
+                         (get-list EML)))
+        (increment-new-entries-count! EML)
         (idle-add PRIORITY_DEFAULT_IDLE
                   (lambda x
-                    ;; (with-mutex (get-list-mutex EML)
-                    (update-text-buf *error-log-cur*)
+                    (append-text-buf *error-log-cur*)
                       #f)
                   ;; )
                   )))
@@ -113,11 +137,11 @@
   (current-warning-port (get-warnport EML)))
 
 (define-method (detach-current-error-ports (EML <ErrorMessageList>))
-  "Detach stderr/stdwar from the Error Message List and print it to the
+  "Detach stderr/stdwarn from the Error Message List and print it to the
 standard error and warning ports"
   (set-attached-flag! EML #f)
-  (set-current-error-port (get-stderr EML))
-  (set! current-warning-port (get-stdwarn EML)))
+  (current-error-port (get-stderr EML))
+  (current-warning-port (get-stdwarn EML)))
 
 (define-method (clear-list (EML <ErrorMessageList>))
   (set-list! EML '()))
@@ -162,10 +186,9 @@ standard error and warning ports"
 (define *error-log-cur* #f)
 
 (define (make-error-log txt-view clear-btn error-toggle-btn warning-toggle-btn
-                        search-entry)
+                        search-entry MessageList)
   (let* ((tag-table (text-tag-table:new))
-         (txt-buf (text-buffer:new tag-table))
-         (MessageList (make <ErrorMessageList>)))
+         (txt-buf (text-buffer:new tag-table)))
     (set-buffer txt-view txt-buf)
     (let ((ErrorLog (make <ErrorLog>
                       #:txt-view txt-view
@@ -196,7 +219,7 @@ standard error and warning ports"
         (text-buffer:create-mark txt-buf "end-mark" end-iter #f))
 
       (set! *error-log-cur* ErrorLog)
-
+      (update-text-buf ErrorLog)
       ErrorLog)))
 
 (define-method (attach-current-error-ports (errlog <ErrorLog>))
@@ -221,11 +244,56 @@ standard error and warning ports"
      (else
       (string-append
        (cond
-        ((= severity EML_ERROR) "🛑 ")
+        ;; U+1F6C8 CIRCLED INFORMATION SOURCE
+        ((= severity EML_INFO) "🛈 ")
+        ;; U+26A0 WARNING SIGN
         ((= severity EML_WARNING) "⚠ ")
+        ;; U+1F6D1 OCTAGONAL SIGN
+        ((= severity EML_ERROR) "🛑 ")
         (else
          "  "))
        (string-ensure-single-newline text))))))
+
+(define-method (append-text-buf ErrorLog)
+  "Append any new lines to the text contents of the error log,
+based on the state of the toggle buttons and search filter box"
+  (let ((show-warnings (get-active? (get-error-toggle-btn ErrorLog)))
+        (show-errors (get-active? (get-warning-toggle-btn ErrorLog)))
+        (search-text (get-text (get-search-entry ErrorLog)))
+        (messages (get-list (get-message-list ErrorLog)))
+        (count (get-new-entries-count (get-message-list ErrorLog))))
+
+    (let ([body-text (string-append-map
+                      (lambda (msg)
+                        (filter-message msg show-warnings show-errors search-text))
+                      (reverse (take messages count)))]
+          [txtbuf (get-txtbuf ErrorLog)])
+
+      ;; Append new text to the end of the view.
+      (let ((end-iter (make <GtkTextIter>))
+            (lines-num (get-line-count txtbuf)))
+        (get-iter-at-line! txtbuf end-iter (1- lines-num))
+        (insert txtbuf end-iter body-text -1))
+
+      (set-new-entries-count! (get-message-list ErrorLog) 0)
+
+      ;; Later, scroll to bottom.  You can't scroll to bottom
+      ;; immediately because the text view has to absorb the text
+      ;; first, so we wait one tick.
+      (idle-add PRIORITY_DEFAULT_IDLE
+                (lambda x
+                  ;; Scroll to bottom
+                  (let ([end-iter (make <GtkTextIter>)]
+                        [lines-num (get-line-count txtbuf)]
+                        [end-mark (get-mark txtbuf "end-mark")])
+                    (get-iter-at-line! txtbuf end-iter (1- lines-num))
+                    (move-mark txtbuf end-mark end-iter)
+                    (scroll-mark-onscreen (get-txt-view ErrorLog) end-mark))
+                  #f ; don't keep running
+                  ))))
+  #f)
+
+
 
 (define-method (update-text-buf ErrorLog)
   "Update the text contents of the error log.  This makes a text

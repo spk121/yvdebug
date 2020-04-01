@@ -3,5 +3,6 @@
   <gresource prefix="/com/lonelycactus/yvdebug">
     <file compressed="true">mainwindow.ui</file>
     <file compressed="true">headerbar.ui</file>
+    <file compressed="true">shortcuts.ui</file>
   </gresource>
 </gresources>

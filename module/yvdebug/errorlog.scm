@@ -306,7 +306,7 @@ buttons and the search filter box"
     (let ([body-text (string-append-map
                       (lambda (msg)
                         (filter-message msg show-warnings show-errors search-text))
-                      messages)]
+                      (reverse messages))]
           [txtbuf (get-txtbuf ErrorLog)])
       (set-text txtbuf body-text -1)
 

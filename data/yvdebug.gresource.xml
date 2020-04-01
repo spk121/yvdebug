@@ -4,6 +4,7 @@
     <file compressed="true">mainwindow.ui</file>
     <file compressed="true">headerbar.ui</file>
     <file compressed="true">shortcuts.ui</file>
+    <file compressed="true">help.ui</file>
     <file compressed="true">lonelycactus-yvdebug.png</file>
   </gresource>
 </gresources>
